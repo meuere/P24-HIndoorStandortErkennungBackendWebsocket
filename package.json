@@ -1,11 +1,11 @@
 {
   "name": "bunbackend",
   "module": "index.js",
-  "type": "module",
+  "devDependencies": {
+    "bun-types": "latest"
+  },
   "scripts": {
     "start": "bun run index.js"
   },
-  "devDependencies": {
-    "bun-types": "latest"
-  }
+  "type": "module"
 }

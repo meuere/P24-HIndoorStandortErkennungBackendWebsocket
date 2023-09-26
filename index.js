@@ -1,4 +1,4 @@
-import { unlink } from "fs";
+import { unlinkSync } from "node:fs";
 
 const port = process.PORT || 4001;
 
@@ -16,9 +16,8 @@ const server = Bun.serve({
     message(ws, msg) {
       const receivedMessage = Buffer.from(msg).toString();
       if(msg[0] === "-"){
-        processComand(msg)
+        processComand(msg, ws)
       }
-      ws.send("echo: "+ msg)
     },
 
     close(ws) {
@@ -42,7 +41,7 @@ const server = Bun.serve({
 
 console.log(`WebSocket server started on: http://${server.hostname}:${port}/`);
 
-async function processComand(cmd){
+async function processComand(cmd, ws){
 //command -RoomID-CMD-DeviceID-
 //                ADD
 //                REM
@@ -61,6 +60,9 @@ await addToRoom(change, cmdparts[1])
 }
 else if(cmdparts[2]==="REM"){
   await remFromRoom(change, cmdparts[1])
+}
+else if(cmdparts[2]=="REQ"){
+  await reqFromRoom(cmdparts[1], ws)
 }
 }
 
@@ -87,12 +89,17 @@ else{
 
 async function remFromRoom(change, room){
   const roomname = "rooms/"+room + ".json"
-  let file = await Bun.file(roomname).text()
+  let file = Bun.file(roomname)
+  if(file.size==0){
+    console.log("Trying to Delete from non existant Room")
+    return
+  }
+  let jsonarr = await file.text()
   let arr = JSON.parse(file)
   console.log(change)
   arr = arr.filter(obj => obj.name !== change.name)
-  if(arr == []){
-    await unlink(roomname)
+  if(arr.length == 0){
+    unlinkSync(roomname);
   }
   else{
     console.log(arr)
@@ -100,4 +107,17 @@ async function remFromRoom(change, room){
     Bun.write(roomname, jsonarr)
     console.log(roomname + " has been changed")
   }
+}
+
+async function reqFromRoom(room, ws){
+  const roomname = "rooms/"+room+".json"
+  let file = Bun.file(roomname)
+  if(file.size == 0){
+    console.log("Request for non existant Room")
+    ws.send("E: 404")
+    return
+  }
+    let jsonarr = await file.text()
+    ws.send(file)
+    console.log(file)
 }

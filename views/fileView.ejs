@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <title>Directory Watcher</title>
+   <script src="/socket.io/socket.io.js"></script>
+   <script>
+      document.addEventListener('DOMContentLoaded', () => {
+         const socket = io();
+
+         socket.on('fileChanged', ({ type, file }) => {
+            const fileList = document.getElementById('fileList');
+            if (type === 'add') {
+               const listItem = document.createElement('li');
+               listItem.textContent = file;
+               fileList.appendChild(listItem);
+            } else if (type === 'unlink') {
+               const items = fileList.getElementsByTagName('li');
+               for (let item of items) {
+                  if (item.textContent === file) {
+                     fileList.removeChild(item);
+                     break;
+                  }
+               }
+            } else if (type === 'change') {
+               alert(`File changed: ${file}`);
+            }
+         });
+      });
+   </script>
+</head>
+<body>
+   <ul id="fileList">
+      <% files.forEach(file => { %>
+         <li><%= file %></li>
+      <% }) %>
+   </ul>
+</body>
+</html>

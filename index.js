@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const WebSocket = require('ws');
 const chokidar = require('chokidar');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 const { unlinkSync, readFileSync, writeFileSync, existsSync } = require('fs');
 
 const port = process.env.PORT || 3333;
@@ -122,7 +123,7 @@ wss.on('connection', (ws) => {
     ws.on('message', async (msg) => {
         const receivedMessage = msg.toString();
         console.log(receivedMessage);
-        if (receivedMessage[0] === "-") {
+        if (receivedMessage[0] === "$") {
             await processCommand(receivedMessage, ws);
         }
     });
@@ -154,10 +155,10 @@ server.listen(port, "0.0.0.0", () => {
     console.log(`Server started on: http://0.0.0.0:${port}/`);
 });
 async function processCommand(cmd, ws){
-  //command -RoomID-CMD-DeviceID-
+  //command $RoomID$CMD$DeviceID$
   //                ADD
   //                REM
-  let cmdparts = cmd.split("-");
+  let cmdparts = cmd.split("$");
   cmdparts.forEach((part) => {
     console.log("part: " + part);
   });
@@ -171,8 +172,10 @@ async function processCommand(cmd, ws){
     await addToRoom(change, cmdparts[1]);
   } else if (cmdparts[2] === "REM") {
     await remFromRoom(change, cmdparts[1]);
-  } else if (cmdparts[2] == "REQ") {
+  } else if (cmdparts[2] === "REQ") {
     await reqFromRoom(cmdparts[1], ws);
+  } else if (cmdparts[2] === "RID"){
+    reqidforRoom(ws);
   }
 }
 
@@ -187,7 +190,14 @@ async function addToRoom(change, room) {
   } else {
       let oldfile = readFileSync(roomname, 'utf-8');
       arr = JSON.parse(oldfile);
-      arr.push(change);
+      const index = arr.findIndex(item => item.name === change.name)
+
+      if(index !== -1){
+        arr[index].date = change.date;
+      }
+      else{
+        arr.push(change);
+      }
       writeFileSync(roomname, JSON.stringify(arr));
       console.log(roomname + " has been changed");
   }
@@ -212,6 +222,12 @@ async function remFromRoom(change, room) {
   }
 }
 
+function reqidforRoom(ws){
+  const uuid = uuidv4();
+  ws.send(uuid);
+  return;
+}
+
 async function reqFromRoom(room, ws) {
   const roomname = "rooms/" + room + ".json";
   if (!existsSync(roomname)) {
@@ -223,3 +239,54 @@ async function reqFromRoom(room, ws) {
   ws.send(fileContent);
   console.log(fileContent);
 }
+
+const directoryPath = 'rooms/';
+const cutoffMilliseconds = 60 * 1000; 
+
+function isDateOlderThanCutoff(date) {
+  const currentTime = new Date();
+  return currentTime - date > cutoffMilliseconds;
+}
+
+function processJsonFile(filePath) {
+  try {
+    let fileData = readFileSync(filePath, 'utf8');
+    let jsonArray = JSON.parse(fileData);
+
+    jsonArray = jsonArray.filter(item => {
+      const date = new Date(item.date);
+      return !isDateOlderThanCutoff(date);
+    });
+
+    if(jsonArray.length == 0){
+      unlinkSync(filePath);
+    }
+    else{
+      writeFileSync(filePath, JSON.stringify(jsonArray, null, 2));
+    }
+  } catch (error) {
+    console.error(`Error processing file ${filePath}: ${error.message}`);
+  }
+}
+
+function processJsonFilesInDirectory() {
+  fs.readdir(directoryPath, (err, files) => {
+    if (err) {
+      console.error(`Error reading directory: ${err}`);
+      return;
+    }
+
+    files.forEach(file => {
+      if (path.extname(file).toLowerCase() === '.json') {
+        const filePath = path.join(directoryPath, file);
+        processJsonFile(filePath);
+      }
+    });
+  });
+}
+
+// Run the processing function every 30 seconds
+setInterval(processJsonFilesInDirectory, 30 * 1000);
+
+
+// TODO: add a timeout to clients in the rooms

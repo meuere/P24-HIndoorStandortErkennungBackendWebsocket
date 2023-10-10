@@ -45,28 +45,30 @@ app.get('/:filename', (req, res) => {
   let { filename } = req.params;
   const filePath = `rooms/${filename}.json`;
 
+  let arr = [];
 
-  if (!existsSync(filename)) {
-    filename = "file not found"
-    let arr = [];
-    return;
+  if (!existsSync(filePath)) {
+    filename = "file not found";
+  } else {
+    try {
+      let oldfile = readFileSync(filePath, 'utf-8');
+      arr = JSON.parse(oldfile);
+    } catch (error) {
+      // Handle JSON parsing error or other file-related errors here.
+      console.error(error);
+    }
   }
-  else{
-    let oldfile = readFileSync(filename, 'utf-8');
-    let arr = JSON.parse(oldfile);
-  }
-  
-
 
   activeViews[filename] = null;
 
-  data = {
+  const data = {
     title: filename,
     array: arr,
   }
 
-  res.render('fileView', { data });
+  res.render('roomView', { data });
 });
+
 
 app.use((req, res) => {
     res.status(404).sendFile('views/404.html', { root: __dirname });
@@ -76,7 +78,7 @@ app.use((req, res) => {
 // Live Uptdates
 
 function watchForDataChange(callback) {
-  let path = "rooms/Room1.json"
+  let path = "rooms/"
   const watcher = chokidar.watch(path);
 
   watcher.on('change', (path) => {
@@ -92,6 +94,11 @@ io.on('connection', (socket) => {
 
   const watcher = chokidar.watch(watchedDir);
 
+  socket.on('viewFile', (filename) => {
+    console.log("fn:" +filename);
+    socket.join(filename);
+});
+
   watcher.on('add', file => {
      console.log(`File added: ${file}`);
      io.emit('fileChanged', { type: 'add', file: path.basename(file) });
@@ -103,9 +110,18 @@ io.on('connection', (socket) => {
   });
 
   watcher.on('change', file => {
-     console.log(`File changed: ${file}`);
-     io.emit('fileChanged', { type: 'change', file: path.basename(file) });
-  });
+    console.log(`File changed: ${file}`);
+    const filename = path.basename(file);
+    let fileContent = [];
+    try {
+        fileContent = JSON.parse(fs.readFileSync(file, 'utf-8'));
+        console.log(fileContent);
+    } catch (error) {
+        console.error(`Error reading file ${file}:`, error);
+    }
+    console.log("fn2:" + filename)
+    io.to(filename).emit('fileChanged', { type: 'change', file: path.basename(file), content: fileContent });
+});
 
   socket.on('disconnect', () => {
      console.log('Client disconnected');
@@ -241,7 +257,7 @@ async function reqFromRoom(room, ws) {
 }
 
 const directoryPath = 'rooms/';
-const cutoffMilliseconds = 60 * 1000; 
+const cutoffMilliseconds = 20 * 1000; 
 
 function isDateOlderThanCutoff(date) {
   const currentTime = new Date();
@@ -286,7 +302,7 @@ function processJsonFilesInDirectory() {
 }
 
 // Run the processing function every 30 seconds
-setInterval(processJsonFilesInDirectory, 30 * 1000);
+setInterval(processJsonFilesInDirectory, 10 * 1000);
 
 
 // TODO: add a timeout to clients in the rooms

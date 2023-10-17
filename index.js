@@ -4,10 +4,14 @@ const { Server } = require('socket.io');
 const WebSocket = require('ws');
 const chokidar = require('chokidar');
 const path = require('path');
+const passport = require('passport');
+const expressSession = require('express-session');
 const { v4: uuidv4 } = require('uuid');
 const { unlinkSync, readFileSync, writeFileSync, existsSync } = require('fs');
 
-const port = process.env.PORT || 3333;
+require('./passport-setup');
+
+const port = process.env.PORT || 80;
 
 const watchedDir = path.join(__dirname, 'rooms');
 
@@ -25,6 +29,15 @@ app.set('view engine', 'ejs');
 
 const activeViews = {};
 
+app.use(expressSession({
+  secret: 'some-random-secret',
+  resave: false,
+  saveUninitialized: true
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
 // Router
 
 app.get('/', (req, res) => {
@@ -33,6 +46,19 @@ app.get('/', (req, res) => {
     message: 'Welcome to the Home Page!',
 };
     res.render('index', data);
+});
+
+app.get('/auth/google', passport.authenticate('google', {
+  scope: ['profile']
+}));
+
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/' }),
+(req, res) => {
+  res.redirect('/profile');
+});
+
+app.get('/profile', (req, res) => {
+  res.send(`<h1>Hello, ${req.user.displayName}</h1>`);
 });
 
 app.get('/f', (req, res)=>{
@@ -71,7 +97,7 @@ app.get('/:filename', (req, res) => {
 
 
 app.use((req, res) => {
-    res.status(404).sendFile('views/404.html', { root: __dirname });
+    res.status(404).render('404', { root: __dirname });
 });
 
 

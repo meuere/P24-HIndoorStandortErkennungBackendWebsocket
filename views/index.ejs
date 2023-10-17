@@ -19,6 +19,13 @@
 </head>
 <body>
     <h1 id="message"><%= message %></h1>
-    <a href="/auth/google">Login with Google</a>
+    <% if (typeof user !== 'undefined' && user) { %>
+        <h1>Welcome, <%= user.displayName %></h1>
+        <a href="/logout">Logout</a>
+    <% } else { %>
+        <a href="/auth/google">Login with Google</a>
+    <% } %>
+    
+    
 </body>
 </html>

@@ -2,6 +2,7 @@ const { Server } = require('socket.io');
 const WebSocket = require('ws');
 const chokidar = require('chokidar');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 const { readFileSync, writeFileSync, existsSync, unlinkSync } = require('fs');
 
 const watchedDir = path.join(__dirname, 'rooms');

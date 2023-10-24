@@ -32,8 +32,13 @@
 
                 const cardTitle = document.createElement('h5');
                 cardTitle.className = "card-title";
-                cardTitle.textContent = item.name; 
-
+                if(item.name == "550e8400-e29b-41d4-a716-446655440000"){
+                    cardTitle.textContent = "Niklachs"
+                }
+                else{
+                    cardTitle.textContent = item.name;
+                }
+                 // TODO: REMOVE
                 cardBody.appendChild(cardTitle);
                 card.appendChild(cardBody);
                 col.appendChild(card);

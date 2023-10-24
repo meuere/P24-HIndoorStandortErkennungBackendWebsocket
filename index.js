@@ -3,6 +3,7 @@ const http = require('http');
 const passport = require('passport');
 const expressSession = require('express-session');
 const routes = require('./routes');
+const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
@@ -24,6 +25,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use(routes);
+app.use(cors());
 
 // Initialize websockets
 require('./websockets')(server);

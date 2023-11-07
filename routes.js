@@ -16,6 +16,15 @@ router.use((req, res, next) => {
     next();
 });
 
+function findUserByUuid(usersDatabase, uuid) {
+    for (const id in usersDatabase) {
+      if (usersDatabase[id].uuid === uuid) {
+        return usersDatabase[id];
+      }
+    }
+    return null; // or undefined, or however you want to handle a user not found
+  }
+
 async function ensureUserHasUUID(user) {
     let usersDatabase;
 
@@ -39,8 +48,6 @@ async function ensureUserHasUUID(user) {
             provider,
             uuid: uuidv4() // Assign a UUID
         };
-
-        // Save the updated data back
         await writeFile('./users.json', JSON.stringify(usersDatabase));
     }
 

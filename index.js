@@ -25,7 +25,9 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use(routes);
-app.use(cors());
+app.use(cors({
+  origin: '*'
+}));
 
 // Initialize websockets
 require('./websockets')(server);

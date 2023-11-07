@@ -10,6 +10,50 @@ const clients = [];
 
 const fs = require('fs');
 
+
+ function ensureUserHasUUID(user) {
+  let usersDatabase;
+
+  try {
+      const rawData = readFileSync('./users.json', 'utf-8');
+      usersDatabase = JSON.parse(rawData);
+  } catch (error) {
+      usersDatabase = {}; // Start with an empty object if there's no file
+  }
+
+  // Extracting the necessary fields
+  const { id, displayName, name, photos, provider } = user;
+
+  // If the user is not in our "database", assign a UUID
+  if (!usersDatabase[id]) {
+      usersDatabase[id] = {
+          id,
+          displayName,
+          name,
+          photos,
+          provider,
+          uuid: uuidv4() // Assign a UUID
+      };
+
+      // Save the updated data back
+      writeFileSync('./users.json', JSON.stringify(usersDatabase));
+  }
+
+  return usersDatabase[id].uuid; // Return the UUID, either the new one or existing one
+}
+
+function findUserByUuid(usersDatabase, uuid) {
+  let foundUser = null;
+  Object.values(usersDatabase).forEach(user => {
+    if (user.uuid === uuid) {
+      foundUser = user;
+    }
+  });
+  return foundUser;
+}
+
+
+
 module.exports = function (server) {
     const io = new Server(server);
     const wss = new WebSocket.Server({ noServer: true });
@@ -36,18 +80,43 @@ module.exports = function (server) {
         });
 
         watcher.on('change', file => {
-            //console.log(`File changed: ${file}`);
-            const filename = path.basename(file);
-            let fileContent = [];
-            try {
-                fileContent = JSON.parse(fs.readFileSync(file, 'utf-8'));
-                //console.log(fileContent);
-            } catch (error) {
-                console.error(`Error reading file ${file}:`, error);
-            }
-            //console.log("fn2:" + filename)
-            io.to(filename).emit('fileChanged', { type: 'change', file: path.basename(file), content: fileContent });
-        });
+          const filename = path.basename(file);
+          let usersDatabase;
+      
+          try {
+              const rawData = readFileSync('./users.json', 'utf-8');
+              usersDatabase = JSON.parse(rawData);
+          } catch (error) {
+              console.error(`Error reading users database:`, error);
+              usersDatabase = {}; // Start with an empty object if there's an error
+          }
+          let fileContent = [];
+      
+          try {
+              fileContent = JSON.parse(fs.readFileSync(file, 'utf-8'));
+              // Map each content to include displayName if the user is found
+              fileContent = fileContent.map(content => {
+                  const user = findUserByUuid(usersDatabase, content.name);
+                  if (user && user.name) {
+                      if(user.name.givenName){
+                        user.name = user.name.givenName + " " + user.name.familyName;
+                      }
+                      return { ...content, displayName: user.name };
+                  }
+                  return null;
+              }).filter(content => content !== null); // Remove the null entries, keep only those with displayName
+      
+          } catch (error) {
+              console.error(`Error reading file ${file}:`, error);
+          }
+      
+          io.to(filename).emit('fileChanged', { 
+              type: 'change', 
+              file: filename, 
+              content: fileContent // Now only contains elements with displayName
+          });
+      });
+      
 
         socket.on('disconnect', () => {
             console.log('Client disconnected');
@@ -111,6 +180,8 @@ module.exports = function (server) {
           await reqFromRoom(cmdparts[1], ws);
         } else if (cmdparts[2] === "RID"){
           reqidforRoom(ws);
+        } else if (cmdparts[2] == "LOGIN"){
+          loginfromphone(ws, cmdparts[3]);
         }
       }
       
@@ -219,8 +290,15 @@ module.exports = function (server) {
           });
         });
       }
+
+      function loginfromphone(ws, json){
+          console.log(json);
+          let user = JSON.parse(json);
+          const uuid = ensureUserHasUUID(user);
+          ws.send(uuid);
+      }
       
-      // Run the processing function every 30 seconds
+      // Run the processing function every 10 seconds
       setInterval(processJsonFilesInDirectory, 10 * 1000);
 }
 

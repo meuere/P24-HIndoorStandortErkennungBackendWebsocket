@@ -21,6 +21,7 @@
         if (type === 'change' && file.includes(filename)) {
             fileList.innerHTML = '';
             content.forEach(item => {
+                if(item.displayName){
                 const col = document.createElement('div');
                 col.className = "col-md-3 mb-4";
                 
@@ -32,17 +33,12 @@
 
                 const cardTitle = document.createElement('h5');
                 cardTitle.className = "card-title";
-                if(item.name == "550e8400-e29b-41d4-a716-446655440000"){
-                    cardTitle.textContent = "Niklachs"
-                }
-                else{
-                    cardTitle.textContent = item.name;
-                }
-                 // TODO: REMOVE
+                cardTitle.textContent = item.displayName;
                 cardBody.appendChild(cardTitle);
                 card.appendChild(cardBody);
                 col.appendChild(card);
                 fileList.appendChild(col);
+                }
             });
         }
     });

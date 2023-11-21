@@ -260,7 +260,7 @@ module.exports = function (server) {
             console.log(fileContent.length);
           } catch (error) {
             ws.send("SIZE:0")
-            console.error(`Error reading file ${file}:`, error);
+            console.error(`Error reading file ${roomname}:`, error);
           }
       }
       

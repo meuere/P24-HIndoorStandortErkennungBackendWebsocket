@@ -238,12 +238,12 @@ module.exports = function (server) {
         const roomname = "rooms/" + room + ".json";
         if (!existsSync(roomname)) {
             //console.log("Request for non existant Room");
-            ws.send("E: 404");
+            ws.send("SIZE:0");
             return;
         }
-        let fileContent = readFileSync(roomname, 'utf-8');
-        ws.send(fileContent);
-        //console.log(fileContent);
+        let fileContent =  JSON.parse(readFileSync(roomname, 'utf-8'));
+        ws.send("SIZE:"+fileContent.length);
+        console.log(fileContent.length);
       }
       
       const directoryPath = 'rooms/';
@@ -295,7 +295,7 @@ module.exports = function (server) {
           console.log(json);
           let user = JSON.parse(json);
           const uuid = ensureUserHasUUID(user);
-          ws.send(uuid);
+          ws.send("uuid:"+uuid);
       }
       
       // Run the processing function every 10 seconds

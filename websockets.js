@@ -235,15 +235,33 @@ module.exports = function (server) {
       }
       
       async function reqFromRoom(room, ws) {
-        const roomname = "rooms/" + room + ".json";
-        if (!existsSync(roomname)) {
-            //console.log("Request for non existant Room");
-            ws.send("SIZE:0");
-            return;
+        try {
+          const rawData = readFileSync('./users.json', 'utf-8');
+          usersDatabase = JSON.parse(rawData);
+        } catch (error) {
+          console.error(`Error reading users database:`, error);
+          usersDatabase = {}; // Start with an empty object if there's an error
         }
-        let fileContent =  JSON.parse(readFileSync(roomname, 'utf-8'));
-        ws.send("SIZE:"+fileContent.length);
-        console.log(fileContent.length);
+        const roomname = "rooms/" + room + ".json";
+        try {
+              fileContent = JSON.parse(fs.readFileSync(roomname, 'utf-8'));
+              // Map each content to include displayName if the user is found
+              fileContent = fileContent.map(content => {
+                  const user = findUserByUuid(usersDatabase, content.name);
+                  if (user && user.name) {
+                      if(user.name.givenName){
+                        user.name = user.name.givenName + " " + user.name.familyName;
+                      }
+                      return { ...content, displayName: user.name };
+                  }
+                  return null;
+              }).filter(content => content !== null); // Remove the null entries, keep only those with displayName
+            ws.send("SIZE:"+fileContent.length)
+            console.log(fileContent.length);
+          } catch (error) {
+            ws.send("SIZE:0")
+            console.error(`Error reading file ${file}:`, error);
+          }
       }
       
       const directoryPath = 'rooms/';

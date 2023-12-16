@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+   <meta charset="UTF-8">
+   <title>Room Watcher</title>
+   <script src="/socket.io/socket.io.js"></script>
+   <script>
+      document.addEventListener('DOMContentLoaded', () => {
+    const socket = io();
+
+    socket.on('fileChanged', ({ type, file, content }) => {
+        const fileList = document.getElementById('fileList');
+        console.log(file);
+        var currentUrl = window.location.href;
+        var urlParts = currentUrl.split('/');
+        var filename = urlParts[urlParts.length - 1];
+        socket.emit('viewFile', filename + ".json");
+        console.log(content);
+
+        if (type === 'change' && file.includes(filename)) {
+            fileList.innerHTML = '';
+            content.forEach(item => {
+                if(item.displayName){
+                const col = document.createElement('div');
+                col.className = "col-md-3 mb-4";
+                
+                const card = document.createElement('div');
+                card.className = "card";
+
+                const cardBody = document.createElement('div');
+                cardBody.className = "card-body";
+
+                const cardTitle = document.createElement('h5');
+                cardTitle.className = "card-title";
+                cardTitle.textContent = item.displayName;
+                cardBody.appendChild(cardTitle);
+                card.appendChild(cardBody);
+                col.appendChild(card);
+                fileList.appendChild(col);
+                }
+            });
+        }
+    });
+});
+   </script>
+</head>
+<body>
+    <nav class="navbar bg-body-tertiary">
+        <div class="container">
+            <a class="btn btn-primary" href="/f" role="button">Back</a>
+            <% if (typeof user !== 'undefined' && user) { %>
+                <h1>Welcome, <%= user.displayName %></h1>
+                <a href="/logout">Logout</a>
+            <% } else { %>
+                <a href="/auth/google">Login with Google</a>
+            <% } %>
+        </div>
+      </nav>
+    
+      <div class="container mt-5">
+        <div class="row" id="fileList">
+            <% data.array.forEach(e => { %>
+                <div class="col-md-3 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title"><%= e.name %></h5>
+                        </div>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    </div>
+    
+</body>
+</html>

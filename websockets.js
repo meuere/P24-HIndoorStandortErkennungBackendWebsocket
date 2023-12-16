@@ -18,7 +18,6 @@ const fs = require('fs');
  */
 function ensureUserHasUUID(user) {
   let usersDatabase;
-
   try {
     const rawData = readFileSync('./users.json', 'utf-8');
     usersDatabase = JSON.parse(rawData);

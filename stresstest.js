@@ -1,8 +1,8 @@
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 
-const wsUrl = 'ws://35.171.255.162/ws';
-const totalConnections = 1100;
+const wsUrl = 'ws://127.0.0.1:3333/ws';
+const totalConnections = 10;
 let uuid = ""
 let errors = 0;
 

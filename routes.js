@@ -25,7 +25,7 @@ function findUserByUuid(usersDatabase, uuid) {
     return null; // or undefined, or however you want to handle a user not found
   }
 
-async function ensureUserHasUUID(user) {
+async function ensureUserHasUUID(user, mode = "uuid") {
     let usersDatabase;
 
     try {
@@ -50,8 +50,13 @@ async function ensureUserHasUUID(user) {
         };
         await writeFile('./users.json', JSON.stringify(usersDatabase));
     }
-
-    return usersDatabase[id].uuid; // Return the UUID, either the new one or existing one
+    if (mode == "uuid"){
+        return usersDatabase[id].uuid; // Return the UUID, either the new one or existing one
+    }
+    else{
+        return usersDatabase[id];
+    }
+    
 }
 
 
@@ -111,6 +116,15 @@ router.get('/:filename', (req, res) => {
     let { filename } = req.params;
     const filePath = `rooms/${filename}.json`;
 
+    let usersDatabase;
+
+    try {
+        const rawData = readFileSync('./users.json', 'utf-8');
+        usersDatabase = JSON.parse(rawData);
+    } catch (error) {
+        usersDatabase = {}; // Start with an empty object if there's no file
+    }
+
     let arr = [];
 
     if (!existsSync(filePath)) {
@@ -124,6 +138,10 @@ router.get('/:filename', (req, res) => {
             console.error(error);
         }
     }
+    arr.forEach(element => {
+        element.name = findUserByUuid(usersDatabase, element.name);
+        console.log(element.name);
+    });
 
     const data = {
         title: filename,

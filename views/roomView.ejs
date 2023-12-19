@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
    <meta charset="UTF-8">
    <title>Room Watcher</title>
    <script src="/socket.io/socket.io.js"></script>
@@ -15,6 +16,7 @@
         var currentUrl = window.location.href;
         var urlParts = currentUrl.split('/');
         var filename = urlParts[urlParts.length - 1];
+        var mode = 'loud';
         socket.emit('viewFile', filename + ".json");
         console.log(content);
 
@@ -39,16 +41,41 @@
                 col.appendChild(card);
                 fileList.appendChild(col);
                 }
+                if(item.mode){
+                    mode = item.mode;
+                }
             });
         }
     });
 });
+
+    const socket = io();
+    var currentUrl = window.location.href;
+    var urlParts = currentUrl.split('/');
+    var filename = urlParts[urlParts.length - 1];
+    filename = filename.replace(/#/g, "");
+
+    
+
+    function changeMode(mode){
+        console.log(mode);
+        socket.emit('changeMode', mode, filename + ".json");
+    }
    </script>
 </head>
 <body>
     <nav class="navbar bg-body-tertiary">
         <div class="container">
             <a class="btn btn-primary" href="/f" role="button">Back</a>
+            <div class="dropdown">
+                <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Phones Notification Mode
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <li><a class="dropdown-item" href="#" onclick="changeMode('loud')">Loud</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="changeMode('silent')">Silent</a></li>
+                </ul>
+            </div>
             <% if (typeof user !== 'undefined' && user) { %>
                 <h1>Welcome, <%= user.displayName %></h1>
                 <a href="/logout">Logout</a>

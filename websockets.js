@@ -7,6 +7,7 @@ const { readFileSync, writeFileSync, existsSync, unlinkSync } = require('fs');
 
 const watchedDir = path.join(__dirname, 'rooms');
 const clients = [];
+let phones = {};
 
 const fs = require('fs');
 
@@ -82,6 +83,15 @@ module.exports = function (server) {
      */
     socket.on('viewFile', (filename) => {
       socket.join(filename);
+    });
+
+    socket.on('changeMode', (mode, filename) => {
+      if(fs.existsSync("rooms/"+filename)){
+      let fileContent =  JSON.parse(fs.readFileSync("rooms/"+filename, 'utf-8'));
+      fileContent[fileContent.length-1].mode = mode;
+      console.log("change mode to " + fileContent[fileContent.length-1].mode);
+      writeFileSync("rooms/"+filename, JSON.stringify(fileContent));
+    }
     });
 
     watcher.on('add', file => {
@@ -214,6 +224,8 @@ module.exports = function (server) {
       
         if (!existsSync(roomname)) {
             arr.push(change);
+            arr.push(mode = {mode: "loud"})
+            console.log(arr);
             writeFileSync(roomname, JSON.stringify(arr));
             //console.log(roomname + " has been created");
         } else {
@@ -248,7 +260,7 @@ module.exports = function (server) {
         let arr = JSON.parse(oldfile);
         //console.log(change);
         arr = arr.filter((obj) => obj.name !== change.name);
-        if (arr.length === 0) {
+        if (arr.length === 1) {
             unlinkSync(roomname);
         } else {
             //console.log(arr);
@@ -306,7 +318,7 @@ module.exports = function (server) {
       }
       
       const directoryPath = 'rooms/';
-      const cutoffMilliseconds = 20 * 1000; 
+      const cutoffMilliseconds = 30 * 1000; 
       
       /**
        * Checks if a given date is older than the cutoff time.
@@ -324,24 +336,28 @@ module.exports = function (server) {
        */
       function processJsonFile(filePath) {
         try {
-          let fileData = readFileSync(filePath, 'utf8');
-          let jsonArray = JSON.parse(fileData);
-      
-          jsonArray = jsonArray.filter(item => {
-            const date = new Date(item.date);
-            return !isDateOlderThanCutoff(date);
-          });
-      
-          if(jsonArray.length == 0){
-            unlinkSync(filePath);
-          }
-          else{
-            writeFileSync(filePath, JSON.stringify(jsonArray, null, 2));
-          }
+            const fileData = readFileSync(filePath, 'utf8');
+            let jsonArray = JSON.parse(fileData);
+    
+            jsonArray = jsonArray.filter(item => !isDateOlderThanCutoff(new Date(item.date)));
+    
+            const mode = jsonArray[jsonArray.length - 1]?.mode || 'loud';
+    
+            jsonArray.forEach(element => {
+                if (phones.includes(element.uuid)) {
+                    phones[element.uuid].send(`mode:${mode}`);
+                }
+            });
+    
+            if (jsonArray.length === 1) {
+                unlinkSync(filePath);
+            } else {
+                writeFileSync(filePath, JSON.stringify(jsonArray, null, 2));
+            }
         } catch (error) {
-          console.error(`Error processing file ${filePath}: ${error.message}`);
+            console.error(`Error processing file ${filePath}: ${error.message}`);
         }
-     }
+    }
       
       /**
        * Processes JSON files in a directory.
@@ -368,9 +384,14 @@ module.exports = function (server) {
        * @param {string} json - The JSON string containing user information.
        */
       function loginfromphone(ws, json){
+        // check if ws is already in phones
+        // if not, add it in cobmbination with uuid
           console.log(json);
           let user = JSON.parse(json);
           const uuid = ensureUserHasUUID(user);
+          if(!phones.includes(uuid)){
+            phones[uuid] = ws;
+          }
           ws.send("uuid:"+uuid);
       }
       

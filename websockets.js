@@ -389,7 +389,7 @@ module.exports = function (server) {
           console.log(json);
           let user = JSON.parse(json);
           const uuid = ensureUserHasUUID(user);
-          if(!phones.includes(uuid)){
+          if(Array.isArray(phones) && !phones.includes(uuid)){
             phones[uuid] = ws;
           }
           ws.send("uuid:"+uuid);

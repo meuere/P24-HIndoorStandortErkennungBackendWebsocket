@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 require('./passport-setup');
 
-const port = process.env.PORT || 3333;
+const port = process.env.PORT || 80;
 
 // Set up express session
 app.use(expressSession({

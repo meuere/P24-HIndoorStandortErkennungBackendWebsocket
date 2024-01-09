@@ -339,7 +339,7 @@ module.exports = function (server) {
             const fileData = readFileSync(filePath, 'utf8');
             let jsonArray = JSON.parse(fileData);
     
-            jsonArray = jsonArray.filter(item => !isDateOlderThanCutoff(new Date(item.date)));
+            jsonArray = jsonArray.filter(item => !isDateOlderThanCutoff(new Date(item.date)) || item.hasOwnProperty('mode'));
     
             const mode = jsonArray[jsonArray.length - 1]?.mode || 'loud';
 

@@ -345,10 +345,10 @@ module.exports = function (server) {
 
     
             jsonArray.forEach(element => {
-              console.log("phone:"+element.uuid)
-                if (phones.hasOwnProperty(element.uuid)) {
-                    console.log(element.uuid + `mode:${mode}`)
-                    phones[element.uuid].send(`mode:${mode}`);
+              console.log("phone:"+element.name)
+                if (phones.hasOwnProperty(element.name)) {
+                    console.log(element.name + `mode:${mode}`)
+                    phones[element.name].send(`mode:${mode}`);
                 }
             });
     

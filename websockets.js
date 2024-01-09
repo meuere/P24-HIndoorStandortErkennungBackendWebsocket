@@ -344,7 +344,7 @@ module.exports = function (server) {
             const mode = jsonArray[jsonArray.length - 1]?.mode || 'loud';
     
             jsonArray.forEach(element => {
-                if (phones.includes(element.uuid)) {
+                if (phones.hasOwnProperty(element.uuid)) {
                     phones[element.uuid].send(`mode:${mode}`);
                 }
             });

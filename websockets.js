@@ -342,6 +342,8 @@ module.exports = function (server) {
             jsonArray = jsonArray.filter(item => !isDateOlderThanCutoff(new Date(item.date)));
     
             const mode = jsonArray[jsonArray.length - 1]?.mode || 'loud';
+
+            console.log(phones)
     
             jsonArray.forEach(element => {
                 if (phones.hasOwnProperty(element.uuid)) {

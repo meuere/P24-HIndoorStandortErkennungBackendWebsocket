@@ -318,7 +318,7 @@ module.exports = function (server) {
       }
       
       const directoryPath = 'rooms/';
-      const cutoffMilliseconds = 30 * 1000; 
+      const cutoffMilliseconds = 10 * 1000; 
       
       /**
        * Checks if a given date is older than the cutoff time.

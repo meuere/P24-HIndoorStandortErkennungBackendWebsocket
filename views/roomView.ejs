@@ -63,6 +63,33 @@
         div.innerHTML="Current: "+ mode
         socket.emit('changeMode', mode, filename + ".json");
     }
+    function addroominfo(){
+        let hiddn = document.getElementById("invis")
+        hiddn.value = `${filename}.json`
+    }
+
+    function uploadpdf(){
+        addroominfo();
+        uploadAndProcessFile();
+    }
+
+    function uploadAndProcessFile() {
+    const formData = new FormData(document.querySelector('form')); 
+    const file = formData.get('pdfFile');
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/uploadpdf');
+    xhr.onload = () => {
+        if (xhr.status === 200) {
+            console.log('File uploaded successfully!');
+        } else {
+            console.error('Error uploading file:', xhr.responseText);
+        }
+    };
+    xhr.send(formData);
+}
+
+
    </script>
 </head>
 <body>
@@ -80,6 +107,13 @@
                     <li><a class="dropdown-item" href="#" onclick="changeMode('loud')">Loud</a></li>
                     <li><a class="dropdown-item" href="#" onclick="changeMode('silent')">Silent</a></li>
                 </ul>
+            </div>
+            <div>
+                <form action="/uploadpdf" method="post" enctype="multipart/form-data">
+                    <input type="hidden" id="invis" value=""/>
+                    <input type="file" name="pdfFile" accept="application/pdf" required/>
+                    <button onclick="uploadpdf()">Upload PDF</button>
+                  </form>
             </div>
             <% if (typeof user !== 'undefined' && user) { %>
                 <h1>Welcome, <%= user.displayName %></h1>

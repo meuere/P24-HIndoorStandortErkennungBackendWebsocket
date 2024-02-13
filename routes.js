@@ -7,9 +7,17 @@ const { existsSync, readFileSync } = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid'); // For generating UUID
 const { writeFile, readFile } = require('fs').promises; // For async operations with files
+const { createReadStream, stat, readdir, unlink, rename } = require('fs')
+const multer = require('multer');
+const cron = require('node-cron');
 
 
+const uploadDestination = './files/';
 const watchedDir = path.join(__dirname, 'rooms');
+const pdfTimeoutTime = 24 * 60 * 60 * 1000;
+
+
+const upload = multer({ dest: uploadDestination }); 
 
 router.use((req, res, next) => {
     res.locals.user = req.user;
@@ -149,6 +157,81 @@ router.get('/:filename', (req, res) => {
     }
 
     res.render('roomView', { data });
+});
+
+router.use('/pdf/:filename', (req, res, next) => {
+    let { filename } = req.params;
+    res.setHeader('Content-Type', 'application/pdf');
+    const pdfPath = './files/' + filename;
+    console.log(pdfPath);
+    createReadStream(pdfPath).pipe(res);
+  });
+
+
+  router.post('/uploadpdf', upload.single('pdfFile'), (req, res) => {
+    console.log("file received");
+    if (!req.file) {
+        res.status(400).send('No file uploaded.');
+    } else {
+        const originalName = req.file.originalname;
+        const newFilePath = `${uploadDestination}${Date.now()}_${originalName}`;
+
+        rename(req.file.path, newFilePath, (err) => {
+            if (err) {
+                res.status(500).send('Error saving file.');
+            } else {
+                const referrerUrl = req.body.referrerUrl || req.headers.referer || '/f'
+                if(referrerUrl != '/f'){
+                    let urlparts = referrerUrl.split('/')
+                    let filePath = `rooms/${urlparts[urlparts.length - 1]}`;
+                    if (!existsSync(filePath)) {
+                        res.send(500).send('something went wrong')
+                    } else {
+                        try {
+                            let oldfile = readFileSync(filePath, 'utf-8');
+                            
+                        } catch (error) {
+                            
+                            console.error(error);
+                        }
+                    }
+                }
+
+                res.redirect(referrerUrl); 
+            }
+        });
+    }
+});
+
+
+cron.schedule('0 0 * * *', () => { 
+    readdir(uploadDirectory, (err, files) => {
+        if (err) {
+            console.error('Error reading directory:', err);
+            return;
+        }
+
+        files.forEach(file => {
+            const filePath = path.join(uploadDirectory, file);
+            stat(filePath, (err, stats) => {
+                if (err) {
+                    console.error('Error getting file stats:', err);
+                    return;
+                }
+
+                const fileAgeInMs = Date.now() - stats.mtimeMs;
+                if (fileAgeInMs > pdfTimeoutTime) {
+                    unlink(filePath, (err) => {
+                        if (err) {
+                            console.error('Error deleting file:', err);
+                        } else {
+                            console.log('Deleted file:', filePath);
+                        }
+                    });
+                }
+            });
+        });
+    });
 });
 
 router.use((req, res) => {

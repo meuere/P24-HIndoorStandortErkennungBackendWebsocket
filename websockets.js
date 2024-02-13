@@ -339,7 +339,7 @@ module.exports = function (server) {
             const fileData = readFileSync(filePath, 'utf8');
             let jsonArray = JSON.parse(fileData);
     
-            jsonArray = jsonArray.filter(item => !isDateOlderThanCutoff(new Date(item.date)) || item.hasOwnProperty('mode'));
+            jsonArray = jsonArray.filter(item => !isDateOlderThanCutoff(new Date(item.date)) || item.hasOwnProperty('mode')|| item.hasOwnProperty('file'));
     
             const mode = jsonArray[jsonArray.length - 1]?.mode || 'loud';
 
@@ -349,6 +349,9 @@ module.exports = function (server) {
                 if (phones.hasOwnProperty(element.name)) {
                     console.log(element.name + `mode:${mode}`)
                     phones[element.name].send(`mode:${mode}`);
+                    if(element.file){
+                      phones[element.name].send(`file:${file}`)
+                    }
                 }
             });
     

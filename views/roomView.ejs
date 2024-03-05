@@ -126,6 +126,7 @@
     
       <div class="container mt-5">
         <div class="row" id="fileList">
+            <% if (typeof data !== 'undefined' && data) { %>
             <% data.array.forEach(e => { %>
                 <% if (e.name !== null) { %>
                 <div class="col-md-3 mb-4">
@@ -137,6 +138,7 @@
                 </div>
                 <% } %>
             <% }) %>
+            <% } %>
         </div>
     </div>
     

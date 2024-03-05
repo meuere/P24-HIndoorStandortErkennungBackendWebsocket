@@ -339,9 +339,10 @@ module.exports = function (server) {
             const fileData = readFileSync(filePath, 'utf8');
             let jsonArray = JSON.parse(fileData);
     
-            jsonArray = jsonArray.filter(item => !isDateOlderThanCutoff(new Date(item.date)) || item.hasOwnProperty('mode')|| item.hasOwnProperty('file'));
+            jsonArray = jsonArray.filter(item => !isDateOlderThanCutoff(new Date(item.date)) || item.hasOwnProperty('mode'));
     
             const mode = jsonArray[jsonArray.length - 1]?.mode || 'loud';
+            const room = filePath.split('/')[1].split('.')[0]
 
     
             jsonArray.forEach(element => {
@@ -349,9 +350,7 @@ module.exports = function (server) {
                 if (phones.hasOwnProperty(element.name)) {
                     console.log(element.name + `mode:${mode}`)
                     phones[element.name].send(`mode:${mode}`);
-                    if(element.file){
-                      phones[element.name].send(`file:${file}`)
-                    }
+                    phones[element.name].send(`room:${room}`)
                 }
             });
     
@@ -404,5 +403,3 @@ module.exports = function (server) {
       // Run the processing function every 10 seconds
       setInterval(processJsonFilesInDirectory, 10 * 1000);
 }
-
-// All utility functions related to WebSocket such as processCommand, addToRoom, etc. stay in this file.

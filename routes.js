@@ -1,13 +1,11 @@
 const express = require('express');
 const router = express.Router();
 
-// Assuming you'll need these imports for your route logic
+
 const passport = require('passport');
-const { existsSync, readFileSync } = require('fs');
+const fs = require('fs-extra');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid'); // For generating UUID
-const { writeFile, readFile } = require('fs').promises; // For async operations with files
-const { createReadStream, stat, readdir, unlink, rename } = require('fs')
 const multer = require('multer');
 const cron = require('node-cron');
 
@@ -33,38 +31,30 @@ function findUserByUuid(usersDatabase, uuid) {
     return null; // or undefined, or however you want to handle a user not found
   }
 
-async function ensureUserHasUUID(user, mode = "uuid") {
-    let usersDatabase;
-
+  async function ensureUserHasUUID(user, mode = "uuid") {
     try {
-        const rawData = await readFile('./users.json', 'utf-8');
-        usersDatabase = JSON.parse(rawData);
+        const usersDatabase = JSON.parse(await fs.readFile('./users.json', 'utf-8'));
+
+        const { id, displayName, name, photos, provider } = user;
+
+        if (!usersDatabase[id]) {
+            usersDatabase[id] = {
+                id,
+                displayName,
+                name,
+                photos,
+                provider,
+                uuid: uuidv4()
+            };
+            await fs.writeFile('./users.json', JSON.stringify(usersDatabase));
+        }
+
+        return (mode === "uuid") ? usersDatabase[id].uuid : usersDatabase[id];
+
     } catch (error) {
-        usersDatabase = {}; // Start with an empty object if there's no file
+        console.error("Error ensuring user has UUID:", error);
+        throw error; 
     }
-
-    // Extracting the necessary fields
-    const { id, displayName, name, photos, provider } = user;
-
-    // If the user is not in our "database", assign a UUID
-    if (!usersDatabase[id]) {
-        usersDatabase[id] = {
-            id,
-            displayName,
-            name,
-            photos,
-            provider,
-            uuid: uuidv4() // Assign a UUID
-        };
-        await writeFile('./users.json', JSON.stringify(usersDatabase));
-    }
-    if (mode == "uuid"){
-        return usersDatabase[id].uuid; // Return the UUID, either the new one or existing one
-    }
-    else{
-        return usersDatabase[id];
-    }
-    
 }
 
 
@@ -120,118 +110,129 @@ router.get('/logout', (req, res) => {
     });
 });
 
-router.get('/:filename', (req, res) => {
-    let { filename } = req.params;
-    const filePath = `rooms/${filename}.json`;
-
-    let usersDatabase;
+router.get('/:filename', async (req, res) => {
+    const { filename } = req.params;
+    const filePath = path.join('rooms', `${filename}.json`);
 
     try {
-        const rawData = readFileSync('./users.json', 'utf-8');
-        usersDatabase = JSON.parse(rawData);
+        const usersDatabase = JSON.parse(await fs.readFile('./users.json', 'utf-8'));
+
+        const roomData = await fs.readFile(filePath, 'utf-8'); 
+        const arr = JSON.parse(roomData);
+
+        await Promise.all(arr.map(async (element) => {
+            element.name = await findUserByUuid(usersDatabase, element.name);
+        }));
+
+        const data = {
+            title: filename,
+            array: arr,
+        };
+
+        res.render('roomView', { data });
+
     } catch (error) {
-        usersDatabase = {}; // Start with an empty object if there's no file
-    }
-
-    let arr = [];
-
-    if (!existsSync(filePath)) {
-        filename = "file not found";
-    } else {
-        try {
-            let oldfile = readFileSync(filePath, 'utf-8');
-            arr = JSON.parse(oldfile);
-        } catch (error) {
-            // Handle JSON parsing error or other file-related errors here.
+        if (error.code === 'ENOENT') { 
+            res.render('roomView', {
+                title: 'File not found',
+                array: [], 
+            });
+        } else {
             console.error(error);
+            res.status(500).send('Error loading room data');
         }
     }
-    arr.forEach(element => {
-        element.name = findUserByUuid(usersDatabase, element.name);
-        console.log(element.name);
-    });
-
-    const data = {
-        title: filename,
-        array: arr,
-    }
-
-    res.render('roomView', { data });
 });
 
-router.use('/pdf/:filename', (req, res, next) => {
-    let { filename } = req.params;
-    res.setHeader('Content-Type', 'application/pdf');
-    const pdfPath = './files/' + filename;
-    console.log(pdfPath);
-    createReadStream(pdfPath).pipe(res);
+
+router.get('/file/:room/:pdf', (req, res) => {
+    const room = req.params.room;
+    const pdfFilename = req.params.pdf;
+
+    const filePath = path.join(__dirname, 'files', room, pdfFilename);
+
+    fs.readFile(filePath, (err, data) => {
+        if (err) {
+            console.error(err);
+            res.status(404).send('File not found');
+        } else {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.send(data);
+        }
+    });
+});
+
+router.get('/files/:room', (req, res) => {
+    const directoryPath = path.join(__dirname, 'files', req.params.room);
+  
+    fs.readdir(directoryPath, (err, files) => {
+      if (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error reading directory' }); 
+      } else {
+        const fileNames = files.filter(file => !file.startsWith('.'));
+        res.json(fileNames); 
+      }
+    });
   });
 
 
-  router.post('/uploadpdf', upload.single('pdfFile'), (req, res) => {
+
+
+router.post('/uploadpdf', upload.single('pdfFile'), async (req, res) => {
     console.log("file received");
     if (!req.file) {
         res.status(400).send('No file uploaded.');
     } else {
         const originalName = req.file.originalname;
-        const newFilePath = `${uploadDestination}${Date.now()}_${originalName}`;
+        const referrerUrl = req.body.referrerUrl || req.headers.referer || '/f'
+        let urlparts = referrerUrl.split('/')
+        let filePath = `rooms/${urlparts[urlparts.length - 1]}.json`;
 
-        rename(req.file.path, newFilePath, (err) => {
-            if (err) {
-                res.status(500).send('Error saving file.');
-            } else {
-                const referrerUrl = req.body.referrerUrl || req.headers.referer || '/f'
-                if(referrerUrl != '/f'){
-                    let urlparts = referrerUrl.split('/')
-                    let filePath = `rooms/${urlparts[urlparts.length - 1]}`;
-                    if (!existsSync(filePath)) {
-                        res.send(500).send('something went wrong')
-                    } else {
-                        try {
-                            let oldfile = readFileSync(filePath, 'utf-8');
-                            
-                        } catch (error) {
-                            
-                            console.error(error);
-                        }
-                    }
-                }
-
-                res.redirect(referrerUrl); 
+        try {
+           if (referrerUrl !== '/f') {
+                if (!await fs.exists(filePath)) {
+                    res.status(500).send('something went wrong')
+                } 
             }
-        });
+
+            const newFilePath = `${uploadDestination}${urlparts[urlparts.length-1]}/${originalName}`;
+            fs.ensureDir(path.dirname(newFilePath))
+            .then(() => {
+                fs.move(req.file.path, newFilePath, (err) => {
+                if (err) return console.error(err);
+                console.log('File moved successfully!');
+                });
+            })
+            .catch(err => console.error(err));
+
+            res.redirect(referrerUrl);
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).send('Error saving file.'); 
+        }
+
     }
 });
 
+cron.schedule('0 0 * * *', async () => {
+    try {
+        const files = await fs.readdir(uploadDestination);
 
-cron.schedule('0 0 * * *', () => { 
-    readdir(uploadDirectory, (err, files) => {
-        if (err) {
-            console.error('Error reading directory:', err);
-            return;
+        for (const file of files) {
+            const filePath = path.join(uploadDestination, file);
+            const stats = await fs.stat(filePath);
+
+            const fileAgeInMs = Date.now() - stats.mtimeMs;
+            if (fileAgeInMs > pdfTimeoutTime) {
+                await fs.unlink(filePath);
+                console.log('Deleted file:', filePath);
+            }
         }
-
-        files.forEach(file => {
-            const filePath = path.join(uploadDirectory, file);
-            stat(filePath, (err, stats) => {
-                if (err) {
-                    console.error('Error getting file stats:', err);
-                    return;
-                }
-
-                const fileAgeInMs = Date.now() - stats.mtimeMs;
-                if (fileAgeInMs > pdfTimeoutTime) {
-                    unlink(filePath, (err) => {
-                        if (err) {
-                            console.error('Error deleting file:', err);
-                        } else {
-                            console.log('Deleted file:', filePath);
-                        }
-                    });
-                }
-            });
-        });
-    });
+    } catch (err) {
+        console.error('Error reading directory or deleting files:', err);
+    }
 });
 
 router.use((req, res) => {
